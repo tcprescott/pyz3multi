@@ -6,3 +6,4 @@ src/romloader.yaml
 .vscode/
 testing/
 env/
+.env

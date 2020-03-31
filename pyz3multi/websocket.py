@@ -8,7 +8,7 @@ import os
 
 import logging
 
-from pyz3multi import types
+from pyz3multi.types import MessageType
 from pyz3multi.backoff import ExponentialBackoff
 
 log = logging.getLogger(__name__)
@@ -16,27 +16,19 @@ log = logging.getLogger(__name__)
 class pyz3multiException(Exception):
     pass
 
-
 class BasicMultiworldClient():
-    def __init__(self, bot, endpoint):
+    def __init__(self, token, bot):
         self.bot = bot
         self.socket = None
-        self.base_address = 'wss://mw.alttpr.com'
-        self.endpoint = endpoint
-
 
     async def connect(self):
         self.loop = asyncio.get_event_loop()
-
-        if self.socket is not None:
-            print('Already connected to multiworld service.')
-            return
 
         print(f"Connecting to Multiworld Service at {self.base_address}/{self.endpoint} ...")
 
         try:
             self.socket = await websockets.connect(f"{self.base_address}/{self.endpoint}", ping_timeout=None, ping_interval=None)
-            asyncio.create_task(self.listen())
+            self._listener = asyncio.create_task(self.listen())
         except Exception as e:
             if self.socket is not None:
                 if not self.socket.closed:
@@ -54,9 +46,11 @@ class BasicMultiworldClient():
                 if not self.socket.closed:
                     await self.socket.close()
                 self.socket = None
+        
+        print(f'Payload sent to {self.endpoint} - {json.dumps(payload)}')
 
     async def process_receive(self, payload):
-        print(json.dumps(payload, indent=4))
+        print(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
 
     async def listen(self):
         while True:
@@ -72,7 +66,7 @@ class BasicMultiworldClient():
 
         while True:
             retry = backoff.delay()
-            log.info('PubSub Websocket closed: Retrying connection in %s seconds...', retry)
+            print('PubSub Websocket closed: Retrying connection in %s seconds...', retry)
 
             await self.connect()
 
@@ -85,3 +79,16 @@ class BasicMultiworldClient():
         await self.socket.close()
         self.reconnect = False
 
+class Lobby(BasicMultiworldClient):
+    def __init__(self, bot):
+        self.bot = bot
+        self.socket = None
+        self.base_address = 'wss://mw.alttpr.com'
+        self.endpoint = 'api/lobby/'
+
+class Multiworld(BasicMultiworldClient):
+    def __init__(self, guid, bot, gametype='mw'):
+        self.bot = bot
+        self.socket = None
+        self.base_address = 'wss://mw.alttpr.com'
+        self.endpoint = f'api/s1p/{guid}' if gametype == 's1p' else f'api/mw/{guid}'

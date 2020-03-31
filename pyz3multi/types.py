@@ -1,4 +1,4 @@
-class MessageTypes:
+class MessageType:
     ItemFill = 0x00
     DungeonFill = 0x01
     EquipmentFill = 0x02
