@@ -3,23 +3,21 @@ from pyz3multi.bot import MultiworldBot
 from pyz3multi.types import MessageType
 from dotenv import load_dotenv
 import os
+import logging
 
 load_dotenv()
 
+logging.basicConfig(filename='output/app.log', level=logging.DEBUG)
+log = logging.getLogger(__name__)
+
 multiworldbot = MultiworldBot(
     token=os.getenv("BOT_TOKEN"),
-    name=os.getenv("BOT_NAME")
+    name=os.getenv("BOT_NAME"),
+    name=os.getenv("MULTIWORLD_SERVER")
 )
 
 async def do_stuff():
-    multiworld = await multiworldbot.join('aa753aad-5ca8-4270-be64-41dc3af3f16a')
-    await multiworld.raw_send(
-        payload = {
-            'type': MessageType.Destroy,
-            'sender': self.token,
-            'save': False
-        }
-    )
+    await multiworldbot.join('aa753aad-5ca8-4270-be64-41dc3af3f16a')
 
     
 
