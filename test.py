@@ -12,8 +12,7 @@ log = logging.getLogger(__name__)
 
 multiworldbot = MultiworldBot(
     token=os.getenv("BOT_TOKEN"),
-    name=os.getenv("BOT_NAME"),
-    name=os.getenv("MULTIWORLD_SERVER")
+    name=os.getenv("BOT_NAME")
 )
 
 async def do_stuff():
