@@ -131,6 +131,9 @@ class Game(BasicMultiworldClient):
         return f'api/s1p/{self.guid}' if gamemode == 1 else f'api/mw/{self.guid}'
 
     async def knock(self, password=""):
+        if socket is None:
+            await self.connect()
+
         await self.raw_send(
             payload = {
                 'type': MessageType.Knock,
@@ -142,7 +145,7 @@ class Game(BasicMultiworldClient):
 
     async def destroy(self):
         if socket is None:
-            self.connect()
+            await self.connect()
 
         await self.raw_send(
             payload = {
