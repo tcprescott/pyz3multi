@@ -34,39 +34,39 @@ class MessageType:
     Log = 0xFF
 
 MessageTypeReverse = {
-    0x00: "ItemFill",
-    0x01: "DungeonFill",
-    0x02: "EquipmentFill",
-    0x03: "RequestItem",
-    0x04: "AquireItem",
-    0x05: "Finish",
+    MessageType.ItemFill: "ItemFill",
+    MessageType.DungeonFill: "DungeonFill",
+    MessageType.EquipmentFill: "EquipmentFill",
+    MessageType.RequestItem: "RequestItem",
+    MessageType.AcquireItem: "AcquireItem",
+    MessageType.Finish: "Finish",
 
-    0x10: "LobbyRequest",
-    0x11: "LobbyEntry",
-    0x12: "Create",
-    0x13: "Destroy",
-    0x14: "Identify",
-    0x15: "Knock",
-    0x16: "WorldDescription",
-    0x17: "WorldClaim",
-    0x18: "RoomReady",
-    0x19: "Kick",
-    0x1F: "ImportRecords",
+    MessageType.LobbyRequest: "LobbyRequest",
+    MessageType.LobbyEntry: "LobbyEntry",
+    MessageType.Create: "Create",
+    MessageType.Destroy: "Destroy",
+    MessageType.Identify: "Identify",
+    MessageType.Knock: "Knock",
+    MessageType.WorldDescription: "WorldDescription",
+    MessageType.WorldClaim: "WorldClaim",
+    MessageType.RoomReady: "RoomReady",
+    MessageType.Kick: "Kick",
+    MessageType.ImportRecords: "ImportRecords",
 
-    0x40: "CreateFile",
-    0x41: "DeleteFile",
-    0x42: "SelectSpawn",
-    0x43: "EnterArea",
-    0x44: "Finish Dungeon",
-    0x45: "Death",
-    0x46: "SaveQuit",
+    MessageType.CreateFile: "CreateFile",
+    MessageType.DeleteFile: "DeleteFile",
+    MessageType.SelectSpawn: "SelectSpawn",
+    MessageType.EnterArea: "EnterArea",
+    MessageType.FinishDungeon: "FinishDungeon",
+    MessageType.Death: "Death",
+    MessageType.SaveQuit: "SaveQuit",
 
-    0xE0: "PrepWrite",
+    MessageType.PrepWrite: "PrepWrite",
 
-    0xF0: "Chat",
-    0xF1: "Introduction",
-    0xFE: "Version",
-    0xFF: "Log",
+    MessageType.Chat: "Chat",
+    MessageType.Introduction: "Introduction",
+    MessageType.Version: "Version",
+    MessageType.Log: "Log",
 }
 
 class GameMode:
@@ -79,11 +79,11 @@ class GameMode:
     DungeonCrawl = 6
 
 GameModeReverse = {
-    0: 'Lobby',
-    1: 'Secure1P',
-    2: 'Multiworld',
-    3: 'LockoutTriforce',
-    4: 'AutoBingo',
-    5: 'SharedState',
-    6: 'DungeonCrawl'
+    GameMode.Lobby: 'Lobby',
+    GameMode.Secure1P: 'Secure1P',
+    GameMode.Multiworld: 'Multiworld',
+    GameMode.LockoutTriforce: 'LockoutTriforce',
+    GameMode.AutoBingo: 'AutoBingo',
+    GameMode.SharedState: 'SharedState',
+    GameMode.DungeonCrawl: 'DungeonCrawl'
 }

@@ -4,10 +4,14 @@ from pyz3multi.types import MessageType
 from dotenv import load_dotenv
 import os
 import logging
+import aioconsole
+import shlex
+import sys
+import json
 
 load_dotenv()
 
-logging.basicConfig(filename='output/app.log', level=logging.DEBUG)
+logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 log = logging.getLogger(__name__)
 
 multiworldbot = MultiworldBot(
@@ -15,13 +19,31 @@ multiworldbot = MultiworldBot(
     name=os.getenv("BOT_NAME")
 )
 
-async def do_stuff():
-    await multiworldbot.join('aa753aad-5ca8-4270-be64-41dc3af3f16a')
+async def console():
+    while True:
+        msg = await aioconsole.ainput()
 
-    
+        command = shlex.split(msg)
+        if not command:
+            continue
+
+        if command[0] == 'request':
+            await multiworldbot.lobby.lobby_request()
+        
+        if command[0] == 'connect':
+            await multiworldbot.games[command[1]].connect()
+
+        if command[0] == 'destroy':
+            await multiworldbot.games[command[1]].destroy()
+
+        if command[0] == 'create':
+            await multiworldbot.lobby.create(
+                name=command[1],
+                description="this is a test"
+            )
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     loop.create_task(multiworldbot.start())
-    loop.create_task(do_stuff())
+    loop.create_task(console())
     loop.run_forever()

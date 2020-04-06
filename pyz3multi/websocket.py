@@ -5,6 +5,7 @@ import json
 import logging
 import os
 import uuid
+from datetime import datetime
 
 import websockets
 
@@ -29,6 +30,7 @@ class BasicMultiworldClient():
         try:
             self.socket = await websockets.connect(f"{self.base_address}/{self.endpoint}", ping_timeout=None, ping_interval=None)
             self._listener = asyncio.create_task(self.listen())
+            await self.connect_handler()
         except Exception as e:
             if self.socket is not None:
                 if not self.socket.closed:
@@ -37,7 +39,11 @@ class BasicMultiworldClient():
 
     async def raw_send(self, payload):
         if self.socket is None or not self.socket.open or self.socket.closed:
-            return None
+            await self.connect()
+
+        payload['id'] = str(uuid.uuid4())
+        payload['created'] = int(datetime.utcnow().timestamp())
+        payload['sender'] = self.bot.token
 
         try:
             await self.socket.send(json.dumps(payload))
@@ -47,10 +53,10 @@ class BasicMultiworldClient():
                     await self.socket.close()
                 self.socket = None
         
-        log.debug(f'Payload sent to {self.endpoint} - {json.dumps(payload)}')
+        log.info(f'Payload sent to {self.endpoint} - {json.dumps(payload)}')
 
     async def on_raw_message(self, payload):
-        log.debug(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
+        log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
 
     async def listen(self):
         while True:
@@ -66,18 +72,24 @@ class BasicMultiworldClient():
 
         while True:
             retry = backoff.delay()
-            log.debug('PubSub Websocket closed: Retrying connection in %s seconds...', retry)
+            log.info('PubSub Websocket closed: Retrying connection in %s seconds...', retry)
 
             await self.connect()
 
+            if self.socket is not None and self.socket.open:
+                log.info(f'Reconnected to {self.endpoint}')
+                return
+
             await asyncio.sleep(retry)
+
+    async def connect_handler(self):
+        pass
 
     async def disconnect(self):
         if self.socket is None or not self.socket.open or self.socket.closed:
             return None
         
         await self.socket.close()
-        self.reconnect = False
 
 class Lobby(BasicMultiworldClient):
     def __init__(self, bot):
@@ -89,68 +101,112 @@ class Lobby(BasicMultiworldClient):
     def endpoint(self):
         return 'api/lobby/'
 
+    async def on_raw_message(self, payload):
+        log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
+        if payload['type'] == MessageType.LobbyEntry:
+            if payload['game'] in self.bot.games:
+                self.bot.games[payload['game']].name = payload.get('name', None)
+                self.bot.games[payload['game']].description = payload.get('description', None)
+                self.bot.games[payload['game']].has_password = payload.get('hasPassword', None),
+                self.bot.games[payload['game']].world_count = payload.get('worldCount', None),
+            else:
+                self.bot.games[payload['game']] = Game(
+                    bot=self.bot,
+                    name=payload.get('name', None),
+                    description=payload.get('description', None),
+                    has_password=payload.get('hasPassword', None),
+                    game=payload.get('game', None),
+                    world_count=payload.get('worldCount', None),
+                    created=datetime.utcfromtimestamp(payload.get('created', None)),
+                    mode=payload.get('mode', None),
+                )
+
+    async def connect_handler(self):
+        await self.lobby_request()
+
     async def lobby_request(self):
         await self.raw_send(
             payload = {
-                'type': MessageType.LobbyRequest,
-                'sender': self.bot.token,
+                'type': MessageType.LobbyRequest
             }
         )
 
-    async def create(self, name, description, password="", finish_resolution=0, forfeit_resolution=0, item_animation=0, item_jingle=0, item_toast=0):
+    async def create(
+            self,
+            name,
+            description,
+            password="",
+            mode=2,
+            finish_resolution=0,
+            forfeit_resolution=0,
+            item_animation=0,
+            item_jingle=0,
+            item_toast=0,
+            creation_token: str=str(uuid.uuid4())
+        ):
         await self.raw_send(
             payload = {
                 'type': MessageType.Create,
-                'sender': self.bot.token,
                 'name': name,
                 'description': description,
                 'password': password,
+                'mode': mode,
                 'finishResolution': finish_resolution,
                 'forfeitResolution': forfeit_resolution,
                 'itemAnimation': item_animation,
                 'itemJingle': item_jingle,
                 'itemToast': item_toast,
-                'creationToken': str(uuid.uuid4())
+                'creationToken': creation_token
             }
         )
+        return creation_token
 
 class Game(BasicMultiworldClient):
-    def __init__(self, guid, bot, name, description, has_password, game, world_count, gamemode):
+    def __init__(self, bot, name, description, has_password, game, world_count, created, mode):
         self.bot = bot
         self.socket = None
         self.base_address = 'wss://mw.alttpr.com'
-        self.gamemode = gamemode
         self.name = name
         self.description = description
         self.has_password = has_password
-        self.game = guid
+        self.game = game
         self.world_count = world_count
+        self.created = created
+        self.mode = mode
+        self.players = {}
+        self.worlds = []
 
     @property
     def endpoint(self):
-        return f'api/s1p/{self.guid}' if gamemode == 1 else f'api/mw/{self.guid}'
+        return f'api/game/{self.game}'
+
+    async def on_raw_message(self, payload):
+        log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
+        if payload['type'] == MessageType.Identify:
+            if payload['sender'] in self.players:
+                self.players[payload['sender']]['name'] = payload.get('name', None)
+            else:
+                self.players[payload['sender']] = {
+                    'name': payload.get('name', None),
+                    'id': payload.get('sender', None),
+                }
+
+    async def connect_handler(self):
+        await self.knock()
 
     async def knock(self, password=""):
-        if socket is None:
-            await self.connect()
-
         await self.raw_send(
             payload = {
                 'type': MessageType.Knock,
-                'sender': self.token,
-                'playerName': self.name,
+                'playerName': self.bot.name,
                 'password': password if self.has_password else ""
             }
         )
 
     async def destroy(self):
-        if socket is None:
-            await self.connect()
-
         await self.raw_send(
             payload = {
                 'type': MessageType.Destroy,
-                'sender': self.token,
                 'save': False
             }
         )
