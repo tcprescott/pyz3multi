@@ -1,4 +1,7 @@
-class MessageType:
+from enum import Enum, unique
+
+@unique
+class MessageType(Enum):
     ItemFill = 0x00
     DungeonFill = 0x01
     EquipmentFill = 0x02
@@ -33,43 +36,8 @@ class MessageType:
     Version = 0xFE
     Log = 0xFF
 
-MessageTypeReverse = {
-    MessageType.ItemFill: "ItemFill",
-    MessageType.DungeonFill: "DungeonFill",
-    MessageType.EquipmentFill: "EquipmentFill",
-    MessageType.RequestItem: "RequestItem",
-    MessageType.AcquireItem: "AcquireItem",
-    MessageType.Finish: "Finish",
-
-    MessageType.LobbyRequest: "LobbyRequest",
-    MessageType.LobbyEntry: "LobbyEntry",
-    MessageType.Create: "Create",
-    MessageType.Destroy: "Destroy",
-    MessageType.Identify: "Identify",
-    MessageType.Knock: "Knock",
-    MessageType.WorldDescription: "WorldDescription",
-    MessageType.WorldClaim: "WorldClaim",
-    MessageType.RoomReady: "RoomReady",
-    MessageType.Kick: "Kick",
-    MessageType.ImportRecords: "ImportRecords",
-
-    MessageType.CreateFile: "CreateFile",
-    MessageType.DeleteFile: "DeleteFile",
-    MessageType.SelectSpawn: "SelectSpawn",
-    MessageType.EnterArea: "EnterArea",
-    MessageType.FinishDungeon: "FinishDungeon",
-    MessageType.Death: "Death",
-    MessageType.SaveQuit: "SaveQuit",
-
-    MessageType.PrepWrite: "PrepWrite",
-
-    MessageType.Chat: "Chat",
-    MessageType.Introduction: "Introduction",
-    MessageType.Version: "Version",
-    MessageType.Log: "Log",
-}
-
-class GameMode:
+@unique
+class GameMode(Enum):
     Lobby = 0
     Secure1P = 1
     Multiworld = 2
@@ -78,12 +46,9 @@ class GameMode:
     SharedState = 5
     DungeonCrawl = 6
 
-GameModeReverse = {
-    GameMode.Lobby: 'Lobby',
-    GameMode.Secure1P: 'Secure1P',
-    GameMode.Multiworld: 'Multiworld',
-    GameMode.LockoutTriforce: 'LockoutTriforce',
-    GameMode.AutoBingo: 'AutoBingo',
-    GameMode.SharedState: 'SharedState',
-    GameMode.DungeonCrawl: 'DungeonCrawl'
-}
+@unique
+class ItemType(Enum):
+    Nothing = 0
+    Minor = 1
+    Major = 2
+    All = 3

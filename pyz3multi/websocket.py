@@ -4,15 +4,18 @@ import asyncio
 import json
 import logging
 import os
+import time
 import uuid
 from datetime import datetime
 
 import websockets
 
 from pyz3multi.backoff import ExponentialBackoff
-from pyz3multi.types import MessageType
+from pyz3multi.types import MessageType, ItemType, GameMode
 
 log = logging.getLogger(__name__)
+
+ROOMREADY = {}
 
 class pyz3multiException(Exception):
     pass
@@ -41,6 +44,7 @@ class BasicMultiworldClient():
         if self.socket is None or not self.socket.open or self.socket.closed:
             await self.connect()
 
+        # these will be sent in every payload
         payload['id'] = str(uuid.uuid4())
         payload['created'] = int(datetime.utcnow().timestamp())
         payload['sender'] = self.bot.token
@@ -103,7 +107,7 @@ class Lobby(BasicMultiworldClient):
 
     async def on_raw_message(self, payload):
         log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
-        if payload['type'] == MessageType.LobbyEntry:
+        if payload['type'] == MessageType.LobbyEntry.value:
             if payload['game'] in self.bot.games:
                 self.bot.games[payload['game']].name = payload.get('name', None)
                 self.bot.games[payload['game']].description = payload.get('description', None)
@@ -120,6 +124,8 @@ class Lobby(BasicMultiworldClient):
                     created=datetime.utcfromtimestamp(payload.get('created', None)),
                     mode=payload.get('mode', None),
                 )
+        if payload['type'] == MessageType.RoomReady.value:
+            ROOMREADY[payload['creationToken']] = payload['game']
 
     async def connect_handler(self):
         await self.lobby_request()
@@ -127,7 +133,7 @@ class Lobby(BasicMultiworldClient):
     async def lobby_request(self):
         await self.raw_send(
             payload = {
-                'type': MessageType.LobbyRequest
+                'type': MessageType.LobbyRequest.value
             }
         )
 
@@ -144,9 +150,10 @@ class Lobby(BasicMultiworldClient):
             item_toast=0,
             creation_token: str=str(uuid.uuid4())
         ):
+        # task = asyncio.create_task()
         await self.raw_send(
             payload = {
-                'type': MessageType.Create,
+                'type': MessageType.Create.value,
                 'name': name,
                 'description': description,
                 'password': password,
@@ -160,6 +167,17 @@ class Lobby(BasicMultiworldClient):
             }
         )
         return creation_token
+
+    async def wait_for_room(self, creation_token):
+        while True:
+            try:
+                guid = ROOMREADY[creation_token]['game']
+                return guid
+            except KeyError:
+                continue
+            # await asyncio.sleep(1)
+
+        return None
 
 class Game(BasicMultiworldClient):
     def __init__(self, bot, name, description, has_password, game, world_count, created, mode):
@@ -182,7 +200,7 @@ class Game(BasicMultiworldClient):
 
     async def on_raw_message(self, payload):
         log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
-        if payload['type'] == MessageType.Identify:
+        if payload['type'] == MessageType.Identify.value:
             if payload['sender'] in self.players:
                 self.players[payload['sender']]['name'] = payload.get('name', None)
             else:
@@ -197,7 +215,7 @@ class Game(BasicMultiworldClient):
     async def knock(self, password=""):
         await self.raw_send(
             payload = {
-                'type': MessageType.Knock,
+                'type': MessageType.Knock.value,
                 'playerName': self.bot.name,
                 'password': password if self.has_password else ""
             }
@@ -206,7 +224,7 @@ class Game(BasicMultiworldClient):
     async def destroy(self):
         await self.raw_send(
             payload = {
-                'type': MessageType.Destroy,
+                'type': MessageType.Destroy.value,
                 'save': False
             }
         )

@@ -37,7 +37,7 @@ async def console():
             await multiworldbot.games[command[1]].destroy()
 
         if command[0] == 'create':
-            await multiworldbot.lobby.create(
+            creation_token = await multiworldbot.lobby.create(
                 name=command[1],
                 description="this is a test"
             )
