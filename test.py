@@ -1,13 +1,18 @@
 import asyncio
-from pyz3multi.bot import MultiworldBot
-from pyz3multi.types import MessageType
-from dotenv import load_dotenv
-import os
+import functools
+import gzip
+import json
 import logging
-import aioconsole
+import os
 import shlex
 import sys
-import json
+
+import aioconsole
+import aiohttp
+from dotenv import load_dotenv
+
+from pyz3multi.bot import MultiworldBot
+from pyz3multi.types import GameMode, ImportType, ItemType, MessageType
 
 load_dotenv()
 
@@ -27,20 +32,102 @@ async def console():
         if not command:
             continue
 
+        if command[0] == 'import':
+            game = multiworldbot.games[command[1]]
+            settings = {
+                "worlds":{
+                    "1":{
+                        "preset":"default",
+                        "glitches_required":"none",
+                        "item_placement":"advanced",
+                        "dungeon_items":"standard",
+                        "accessibility":"items",
+                        "goal":"ganon",
+                        "tower_open":"7",
+                        "ganon_open":"7",
+                        "world_state":"open",
+                        "entrance_shuffle":"none",
+                        "boss_shuffle":"none",
+                        "enemy_shuffle":"none",
+                        "hints":"on",
+                        "weapons":"randomized",
+                        "item_pool":"normal",
+                        "item_functionality":"normal",
+                        "enemy_damage":"default",
+                        "enemy_health":"default",
+                        "spoiler":"off"
+                    }
+                },
+                "lang":"en"
+            }
+            async with aiohttp.request(
+                method='post',
+                url='https://v311test.synack.live/api/multiworld',
+                json=settings,
+                auth=aiohttp.BasicAuth('mirrorshield', 'isariot')
+            ) as resp:
+                print(resp)
+                binary = await resp.read()
+            records = gzip.decompress(binary).decode('utf-8')
+            await game.import_records(records)
+
         if command[0] == 'request':
             await multiworldbot.lobby.lobby_request()
         
         if command[0] == 'connect':
-            await multiworldbot.games[command[1]].connect()
+            game = multiworldbot.games[command[1]]
+            await game.connect()
 
         if command[0] == 'destroy':
-            await multiworldbot.games[command[1]].destroy()
+            game = multiworldbot.games[command[1]]
+            await game.destroy()
 
         if command[0] == 'create':
             creation_token = await multiworldbot.lobby.create(
                 name=command[1],
-                description="this is a test"
+                description="this is a test",
+                mode=GameMode.Secure1P.value,
+                callback=functools.partial(fire_after_room_creation)
             )
+
+async def fire_after_room_creation(game):
+    await game.connect()
+    settings = {
+        "worlds":{
+            "1":{
+                "preset":"default",
+                "glitches_required":"none",
+                "item_placement":"advanced",
+                "dungeon_items":"standard",
+                "accessibility":"items",
+                "goal":"ganon",
+                "tower_open":"7",
+                "ganon_open":"7",
+                "world_state":"open",
+                "entrance_shuffle":"none",
+                "boss_shuffle":"none",
+                "enemy_shuffle":"none",
+                "hints":"on",
+                "weapons":"randomized",
+                "item_pool":"normal",
+                "item_functionality":"normal",
+                "enemy_damage":"default",
+                "enemy_health":"default",
+                "spoiler":"off"
+            }
+        },
+        "lang":"en"
+    }
+    async with aiohttp.request(
+        method='post',
+        url='https://v311test.synack.live/api/multiworld',
+        json=settings,
+        auth=aiohttp.BasicAuth(os.getenv("SITE_USERNAME"), os.getenv("SITE_PASSWORD"))
+    ) as resp:
+        print(resp)
+        binary = await resp.read()
+    records = gzip.decompress(binary).decode('utf-8')
+    await game.import_records(records)
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()

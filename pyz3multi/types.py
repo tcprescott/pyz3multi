@@ -52,3 +52,8 @@ class ItemType(Enum):
     Minor = 1
     Major = 2
     All = 3
+
+@unique
+class ImportType(Enum):
+    Unknown = 0
+    V31JSON = 1

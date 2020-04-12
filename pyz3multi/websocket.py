@@ -11,7 +11,7 @@ from datetime import datetime
 import websockets
 
 from pyz3multi.backoff import ExponentialBackoff
-from pyz3multi.types import MessageType, ItemType, GameMode
+from pyz3multi.types import MessageType, ItemType, GameMode, ImportType
 
 log = logging.getLogger(__name__)
 
@@ -108,24 +108,17 @@ class Lobby(BasicMultiworldClient):
     async def on_raw_message(self, payload):
         log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
         if payload['type'] == MessageType.LobbyEntry.value:
-            if payload['game'] in self.bot.games:
-                self.bot.games[payload['game']].name = payload.get('name', None)
-                self.bot.games[payload['game']].description = payload.get('description', None)
-                self.bot.games[payload['game']].has_password = payload.get('hasPassword', None),
-                self.bot.games[payload['game']].world_count = payload.get('worldCount', None),
-            else:
-                self.bot.games[payload['game']] = Game(
-                    bot=self.bot,
-                    name=payload.get('name', None),
-                    description=payload.get('description', None),
-                    has_password=payload.get('hasPassword', None),
-                    game=payload.get('game', None),
-                    world_count=payload.get('worldCount', None),
-                    created=datetime.utcfromtimestamp(payload.get('created', None)),
-                    mode=payload.get('mode', None),
-                )
+            self.update_game(payload)
         if payload['type'] == MessageType.RoomReady.value:
-            ROOMREADY[payload['creationToken']] = payload['game']
+            if payload['creationToken'] in ROOMREADY:
+                self.update_game(payload['game'])
+                func = ROOMREADY[payload['creationToken']]
+                if asyncio.iscoroutinefunction(func.func):
+                    await func(game=self.bot.games[payload['game']['game']])
+                else:
+                    func(game=self.bot.games[payload['game']['game']])
+                del ROOMREADY[payload['creationToken']]
+
 
     async def connect_handler(self):
         await self.lobby_request()
@@ -137,18 +130,37 @@ class Lobby(BasicMultiworldClient):
             }
         )
 
+    def update_game(self, payload):
+        if payload['game'] in self.bot.games:
+            self.bot.games[payload['game']].name = payload.get('name', None)
+            self.bot.games[payload['game']].description = payload.get('description', None)
+            self.bot.games[payload['game']].has_password = payload.get('hasPassword', None),
+            self.bot.games[payload['game']].world_count = payload.get('worldCount', None),
+        else:
+            self.bot.games[payload['game']] = Game(
+                bot=self.bot,
+                name=payload.get('name', None),
+                description=payload.get('description', None),
+                has_password=payload.get('hasPassword', None),
+                game=payload.get('game', None),
+                world_count=payload.get('worldCount', None),
+                created=datetime.utcfromtimestamp(payload.get('created', None)),
+                mode=payload.get('mode', None),
+            )
+
     async def create(
             self,
-            name,
-            description,
-            password="",
-            mode=2,
-            finish_resolution=0,
-            forfeit_resolution=0,
-            item_animation=0,
-            item_jingle=0,
-            item_toast=0,
-            creation_token: str=str(uuid.uuid4())
+            name: str,
+            description: str,
+            password: str="",
+            mode=GameMode.Multiworld.value,
+            finish_resolution: int=ItemType.Nothing.value,
+            forfeit_resolution: int=ItemType.Nothing.value,
+            item_animation: int=ItemType.Nothing.value,
+            item_jingle: int=ItemType.Nothing.value,
+            item_toast: int=ItemType.Nothing.value,
+            creation_token: str=str(uuid.uuid4()),
+            callback=None
         ):
         # task = asyncio.create_task()
         await self.raw_send(
@@ -166,18 +178,13 @@ class Lobby(BasicMultiworldClient):
                 'creationToken': creation_token
             }
         )
+        if callback is not None:
+            ROOMREADY[creation_token] = callback
         return creation_token
 
-    async def wait_for_room(self, creation_token):
-        while True:
-            try:
-                guid = ROOMREADY[creation_token]['game']
-                return guid
-            except KeyError:
-                continue
-            # await asyncio.sleep(1)
+    # def register_room_create(self, creation_token, partial):
+    #     ROOMREADY[creation_token] = partial
 
-        return None
 
 class Game(BasicMultiworldClient):
     def __init__(self, bot, name, description, has_password, game, world_count, created, mode):
@@ -218,6 +225,15 @@ class Game(BasicMultiworldClient):
                 'type': MessageType.Knock.value,
                 'playerName': self.bot.name,
                 'password': password if self.has_password else ""
+            }
+        )
+
+    async def import_records(self, body, import_type=ImportType.V31JSON.value):
+        await self.raw_send(
+            payload = {
+                'type': MessageType.ImportRecords.value,
+                'body': body,
+                'importType': import_type
             }
         )
 
