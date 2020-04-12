@@ -57,7 +57,10 @@ class BasicMultiworldClient():
                     await self.socket.close()
                 self.socket = None
         
-        log.info(f'Payload sent to {self.endpoint} - {json.dumps(payload)}')
+        if payload['type'] == MessageType.ImportRecords.value:
+            log.info(f'Payload sent to {self.endpoint} - Import records request')
+        else:
+            log.info(f'Payload sent to {self.endpoint} - {json.dumps(payload)}')
 
     async def on_raw_message(self, payload):
         log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
@@ -214,7 +217,10 @@ class Game(BasicMultiworldClient):
         return f'api/game/{self.game}'
 
     async def on_raw_message(self, payload):
-        log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
+        if payload['type'] == MessageType.ImportRecords.value:
+            log.info(f'Payload received from {self.endpoint} - Import records request.')
+        else:
+            log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
         if payload['type'] == MessageType.Identify.value:
             player = Player(
                 game = self,
@@ -238,6 +244,8 @@ class Game(BasicMultiworldClient):
             self.worlds[payload['world']] = world
         elif payload['type'] == MessageType.WorldClaim.value:
             self.worlds[payload['world']].claimed = payload['claim']
+        elif payload['type'] == MessageType.ImportRecords.value:
+            await self.knock()
 
 
     async def connect_handler(self):
