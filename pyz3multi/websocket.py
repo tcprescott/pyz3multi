@@ -95,6 +95,14 @@ class BasicMultiworldClient():
         
         await self.socket.close()
 
+    async def chat(self, body: str):
+        await self.raw_send(
+            payload = {
+                'type': MessageType.Chat.value,
+                'body': body
+            }
+        )
+
 class Lobby(BasicMultiworldClient):
     def __init__(self, bot):
         self.bot = bot
@@ -199,7 +207,7 @@ class Game(BasicMultiworldClient):
         self.created = created
         self.mode = mode
         self.players = {}
-        self.worlds = []
+        self.worlds = {}
 
     @property
     def endpoint(self):
@@ -208,13 +216,29 @@ class Game(BasicMultiworldClient):
     async def on_raw_message(self, payload):
         log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
         if payload['type'] == MessageType.Identify.value:
-            if payload['sender'] in self.players:
-                self.players[payload['sender']]['name'] = payload.get('name', None)
-            else:
-                self.players[payload['sender']] = {
-                    'name': payload.get('name', None),
-                    'id': payload.get('sender', None),
-                }
+            player = Player(
+                game = self,
+                name = payload['name'],
+                player_id = payload['id']
+            )
+            self.players[payload['id']] = player
+        elif payload['type'] == MessageType.WorldDescription.value:
+            world = World(
+                game = self,
+                world = payload['world'],
+                title = payload['title'],
+                description = payload['description'],
+                rng = payload['rng'],
+                mystery = payload.get('mystery', False),
+                logic = payload.get('logic', {}),
+                goals = payload.get('goals', {}),
+                gameplay = payload.get('gameplay', {}),
+                difficulty = payload.get('difficulty', {})
+            )
+            self.worlds[payload['world']] = world
+        elif payload['type'] == MessageType.WorldClaim.value:
+            self.worlds[payload['world']].claimed = payload['claim']
+
 
     async def connect_handler(self):
         await self.knock()
@@ -251,3 +275,51 @@ class Game(BasicMultiworldClient):
     def __repr__(self):
         return (f'{self.__class__.__name__}('
                 f'name={self.name!r}, game={self.game!r})')
+
+class Player():
+    def __init__(self, game, name, player_id):
+        self.game = game
+        self.name = name
+        self.player_id = player_id
+
+    async def kick(self, reason, resolution):
+        await self.game.raw_send(
+            payload = {
+                'type': MessageType.Kick.value,
+                'target': self.player_id,
+                'reason': reason,
+                'resolution': resolution
+            }
+        )
+
+class World():
+    def __init__(self, game: Game, world: int, title: str, description: str, rng: str, mystery: bool, logic: dict, goals: dict, gameplay: dict, difficulty: dict):
+        self.game = game
+        self.world = world
+        self.title = title
+        self.description = description
+        self.rng = rng
+        self.mystery = mystery
+        self.logic = logic
+        self.goals = goals
+        self.gameplay = gameplay
+        self.difficulty = difficulty
+        self.claimed = False
+    
+    async def claim(self):
+        await self.game.raw_send(
+            payload = {
+                'type': MessageType.WorldClaim.value,
+                'world': self.world,
+                'claim': True,
+            }
+        )
+
+    async def unclaim(self):
+        await self.game.raw_send(
+            payload = {
+                'type': MessageType.WorldClaim.value,
+                'world': self.world,
+                'claim': False,
+            }
+        )

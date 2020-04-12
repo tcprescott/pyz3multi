@@ -82,6 +82,14 @@ async def console():
             game = multiworldbot.games[command[1]]
             await game.destroy()
 
+        if command[0] == 'claim':
+            game = multiworldbot.games[command[1]]
+            await game.worlds[int(command[2])].claim()
+
+        if command[0] == 'unclaim':
+            game = multiworldbot.games[command[1]]
+            await game.worlds[int(command[2])].unclaim()
+
         if command[0] == 'create':
             creation_token = await multiworldbot.lobby.create(
                 name=command[1],
@@ -89,6 +97,13 @@ async def console():
                 mode=GameMode.Secure1P.value,
                 callback=functools.partial(fire_after_room_creation)
             )
+
+        if command[0] == 'chat':
+            if command[1] == 'lobby':
+                await multiworldbot.lobby.chat(command[2])
+            else:
+                game = multiworldbot.games[command[1]]
+                await game.chat(command[2])
 
 async def fire_after_room_creation(game):
     await game.connect()
