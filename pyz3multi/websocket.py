@@ -219,9 +219,9 @@ class Game(BasicMultiworldClient):
             player = Player(
                 game = self,
                 name = payload['name'],
-                player_id = payload['id']
+                player_id = payload['sender']
             )
-            self.players[payload['id']] = player
+            self.players[payload['sender']] = player
         elif payload['type'] == MessageType.WorldDescription.value:
             world = World(
                 game = self,
