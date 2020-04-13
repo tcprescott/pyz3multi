@@ -9,5 +9,11 @@ class MultiworldBot():
         self.token = token
         self.name = name
 
+    def get_game(self, guid):
+        try:
+            return self.games[guid]
+        except KeyError:
+            return None
+
     async def start(self):
         await self.lobby.connect()

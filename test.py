@@ -77,90 +77,6 @@ async def console():
                         "enemy_damage":"default",
                         "enemy_health":"default",
                         "spoiler":"off"
-                    },
-                    "3":{
-                        "preset":"default",
-                        "glitches_required":"none",
-                        "item_placement":"advanced",
-                        "dungeon_items":"standard",
-                        "accessibility":"items",
-                        "goal":"ganon",
-                        "tower_open":"7",
-                        "ganon_open":"7",
-                        "world_state":"open",
-                        "entrance_shuffle":"none",
-                        "boss_shuffle":"none",
-                        "enemy_shuffle":"none",
-                        "hints":"on",
-                        "weapons":"randomized",
-                        "item_pool":"normal",
-                        "item_functionality":"normal",
-                        "enemy_damage":"default",
-                        "enemy_health":"default",
-                        "spoiler":"off"
-                    },
-                    "4":{
-                        "preset":"default",
-                        "glitches_required":"none",
-                        "item_placement":"advanced",
-                        "dungeon_items":"standard",
-                        "accessibility":"items",
-                        "goal":"ganon",
-                        "tower_open":"7",
-                        "ganon_open":"7",
-                        "world_state":"open",
-                        "entrance_shuffle":"none",
-                        "boss_shuffle":"none",
-                        "enemy_shuffle":"none",
-                        "hints":"on",
-                        "weapons":"randomized",
-                        "item_pool":"normal",
-                        "item_functionality":"normal",
-                        "enemy_damage":"default",
-                        "enemy_health":"default",
-                        "spoiler":"off"
-                    },
-                    "5":{
-                        "preset":"default",
-                        "glitches_required":"none",
-                        "item_placement":"advanced",
-                        "dungeon_items":"standard",
-                        "accessibility":"items",
-                        "goal":"ganon",
-                        "tower_open":"7",
-                        "ganon_open":"7",
-                        "world_state":"open",
-                        "entrance_shuffle":"none",
-                        "boss_shuffle":"none",
-                        "enemy_shuffle":"none",
-                        "hints":"on",
-                        "weapons":"randomized",
-                        "item_pool":"normal",
-                        "item_functionality":"normal",
-                        "enemy_damage":"default",
-                        "enemy_health":"default",
-                        "spoiler":"off"
-                    },
-                    "6":{
-                        "preset":"default",
-                        "glitches_required":"none",
-                        "item_placement":"advanced",
-                        "dungeon_items":"standard",
-                        "accessibility":"items",
-                        "goal":"ganon",
-                        "tower_open":"7",
-                        "ganon_open":"7",
-                        "world_state":"open",
-                        "entrance_shuffle":"none",
-                        "boss_shuffle":"none",
-                        "enemy_shuffle":"none",
-                        "hints":"on",
-                        "weapons":"randomized",
-                        "item_pool":"normal",
-                        "item_functionality":"normal",
-                        "enemy_damage":"default",
-                        "enemy_health":"default",
-                        "spoiler":"off"
                     }
                 },
                 "lang":"en"
@@ -180,26 +96,37 @@ async def console():
             await multiworldbot.lobby.lobby_request()
         
         if command[0] == 'connect':
-            game = multiworldbot.games[command[1]]
+            game = multiworldbot.get_game(command[1])
             await game.connect()
 
         if command[0] == 'destroy':
-            game = multiworldbot.games[command[1]]
-            await game.destroy()
+            game = multiworldbot.get_game(command[1])
+            await game.destroy(save=True)
 
         if command[0] == 'claim':
-            game = multiworldbot.games[command[1]]
+            game = multiworldbot.get_game(command[1])
             await game.worlds[int(command[2])].claim()
 
         if command[0] == 'unclaim':
-            game = multiworldbot.games[command[1]]
+            game = multiworldbot.get_game(command[1])
             await game.worlds[int(command[2])].unclaim()
 
+        if command[0] == 'kick':
+            game = multiworldbot.get_game(command[1])
+            player = game.players[command[2]]
+            await player.kick(reason="lmao", resolution=0)
+
+
         if command[0] == 'create':
-            creation_token = await multiworldbot.lobby.create(
+            try:
+                password = command[2]
+            except IndexError:
+                password = ""
+            await multiworldbot.lobby.create(
                 name=command[1],
                 description="this is a test",
                 mode=GameMode.Multiworld.value,
+                password=password,
                 callback=functools.partial(fire_after_room_creation)
             )
 
@@ -236,90 +163,6 @@ async def fire_after_room_creation(game):
                 "spoiler":"off"
             },
             "2":{
-                "preset":"default",
-                "glitches_required":"none",
-                "item_placement":"advanced",
-                "dungeon_items":"standard",
-                "accessibility":"items",
-                "goal":"ganon",
-                "tower_open":"7",
-                "ganon_open":"7",
-                "world_state":"open",
-                "entrance_shuffle":"none",
-                "boss_shuffle":"none",
-                "enemy_shuffle":"none",
-                "hints":"on",
-                "weapons":"randomized",
-                "item_pool":"normal",
-                "item_functionality":"normal",
-                "enemy_damage":"default",
-                "enemy_health":"default",
-                "spoiler":"off"
-            },
-            "3":{
-                "preset":"default",
-                "glitches_required":"none",
-                "item_placement":"advanced",
-                "dungeon_items":"standard",
-                "accessibility":"items",
-                "goal":"ganon",
-                "tower_open":"7",
-                "ganon_open":"7",
-                "world_state":"open",
-                "entrance_shuffle":"none",
-                "boss_shuffle":"none",
-                "enemy_shuffle":"none",
-                "hints":"on",
-                "weapons":"randomized",
-                "item_pool":"normal",
-                "item_functionality":"normal",
-                "enemy_damage":"default",
-                "enemy_health":"default",
-                "spoiler":"off"
-            },
-            "4":{
-                "preset":"default",
-                "glitches_required":"none",
-                "item_placement":"advanced",
-                "dungeon_items":"standard",
-                "accessibility":"items",
-                "goal":"ganon",
-                "tower_open":"7",
-                "ganon_open":"7",
-                "world_state":"open",
-                "entrance_shuffle":"none",
-                "boss_shuffle":"none",
-                "enemy_shuffle":"none",
-                "hints":"on",
-                "weapons":"randomized",
-                "item_pool":"normal",
-                "item_functionality":"normal",
-                "enemy_damage":"default",
-                "enemy_health":"default",
-                "spoiler":"off"
-            },
-            "5":{
-                "preset":"default",
-                "glitches_required":"none",
-                "item_placement":"advanced",
-                "dungeon_items":"standard",
-                "accessibility":"items",
-                "goal":"ganon",
-                "tower_open":"7",
-                "ganon_open":"7",
-                "world_state":"open",
-                "entrance_shuffle":"none",
-                "boss_shuffle":"none",
-                "enemy_shuffle":"none",
-                "hints":"on",
-                "weapons":"randomized",
-                "item_pool":"normal",
-                "item_functionality":"normal",
-                "enemy_damage":"default",
-                "enemy_health":"default",
-                "spoiler":"off"
-            },
-            "6":{
                 "preset":"default",
                 "glitches_required":"none",
                 "item_placement":"advanced",

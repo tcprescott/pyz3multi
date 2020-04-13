@@ -78,6 +78,8 @@ class BasicMultiworldClient():
         self._listener.cancel()
 
         while True:
+            if self.socket is None:
+                return
             retry = backoff.delay()
             log.info('PubSub Websocket closed: Retrying connection in %s seconds...', retry)
 
@@ -93,10 +95,9 @@ class BasicMultiworldClient():
         pass
 
     async def disconnect(self):
-        if self.socket is None or not self.socket.open or self.socket.closed:
-            return None
-        
+        self._listener.cancel()
         await self.socket.close()
+        self.socket = None
 
     async def chat(self, body: str):
         await self.raw_send(
@@ -119,10 +120,13 @@ class Lobby(BasicMultiworldClient):
     async def on_raw_message(self, payload):
         log.info(f'Payload received from {self.endpoint} - {json.dumps(payload)}')
         if payload['type'] == MessageType.LobbyEntry.value:
-            self.update_game(payload)
+            if payload.get('destroyed', False):
+                await self.cleanup_game(payload)
+            else:
+                await self.update_game(payload)
         if payload['type'] == MessageType.RoomReady.value:
             if payload['creationToken'] in ROOMREADY:
-                self.update_game(payload['game'])
+                await self.update_game(payload['game'])
                 func = ROOMREADY[payload['creationToken']]
                 if asyncio.iscoroutinefunction(func.func):
                     await func(game=self.bot.games[payload['game']['game']])
@@ -141,12 +145,14 @@ class Lobby(BasicMultiworldClient):
             }
         )
 
-    def update_game(self, payload):
+    async def update_game(self, payload):
         if payload['game'] in self.bot.games:
-            self.bot.games[payload['game']].name = payload.get('name', None)
-            self.bot.games[payload['game']].description = payload.get('description', None)
-            self.bot.games[payload['game']].has_password = payload.get('hasPassword', None),
-            self.bot.games[payload['game']].world_count = payload.get('worldCount', None),
+            game = self.bot.get_game(payload['game'])
+            game.name = payload.get('name', None)
+            game.description = payload.get('description', None)
+            game.has_password = payload.get('hasPassword', None)
+            game.world_count = payload.get('worldCount', None)
+
         else:
             self.bot.games[payload['game']] = Game(
                 bot=self.bot,
@@ -159,11 +165,21 @@ class Lobby(BasicMultiworldClient):
                 mode=payload.get('mode', None),
             )
 
+    async def cleanup_game(self, payload):
+        if payload['game'] in self.bot.games:
+            game = self.bot.get_game(payload['game'])
+            if game.socket is not None:
+                await game.disconnect()
+            try:
+                del self.bot.games[payload['game']]
+            except KeyError:
+                log.info(f"Tried to remove {payload['game']} but was already removed!")
+
     async def create(
             self,
             name: str,
             description: str,
-            password: str="",
+            password: str=None,
             mode=GameMode.Multiworld.value,
             finish_resolution: int=ItemType.Nothing.value,
             forfeit_resolution: int=ItemType.Nothing.value,
@@ -179,7 +195,7 @@ class Lobby(BasicMultiworldClient):
                 'type': MessageType.Create.value,
                 'name': name,
                 'description': description,
-                'password': password,
+                'password': "" if password is None else password,
                 'mode': mode,
                 'finishResolution': finish_resolution,
                 'forfeitResolution': forfeit_resolution,
@@ -193,12 +209,8 @@ class Lobby(BasicMultiworldClient):
             ROOMREADY[creation_token] = callback
         return creation_token
 
-    # def register_room_create(self, creation_token, partial):
-    #     ROOMREADY[creation_token] = partial
-
-
 class Game(BasicMultiworldClient):
-    def __init__(self, bot, name, description, has_password, game, world_count, created, mode):
+    def __init__(self, bot, name, description, has_password, game, world_count, created, mode, password=""):
         self.bot = bot
         self.socket = None
         self.base_address = 'wss://mw.alttpr.com'
@@ -209,6 +221,7 @@ class Game(BasicMultiworldClient):
         self.world_count = world_count
         self.created = created
         self.mode = mode
+        self.password = password
         self.players = {}
         self.worlds = {}
 
@@ -251,16 +264,20 @@ class Game(BasicMultiworldClient):
     async def connect_handler(self):
         await self.knock()
 
-    async def knock(self, password=""):
+    async def knock(self):
+        if self.socket is None:
+            self.connect()
         await self.raw_send(
             payload = {
                 'type': MessageType.Knock.value,
                 'playerName': self.bot.name,
-                'password': password if self.has_password else ""
+                'password': self.password if self.has_password else ""
             }
         )
 
     async def import_records(self, body, import_type=ImportType.V31JSON.value):
+        if self.socket is None:
+            self.connect()
         await self.raw_send(
             payload = {
                 'type': MessageType.ImportRecords.value,
@@ -269,13 +286,27 @@ class Game(BasicMultiworldClient):
             }
         )
 
-    async def destroy(self):
+    async def destroy(self, save=False):
+        if self.socket is None:
+            self.connect()
         await self.raw_send(
             payload = {
                 'type': MessageType.Destroy.value,
-                'save': False
+                'save': save
             }
         )
+
+    def get_player(self, guid):
+        try:
+            return self.players[guid]
+        except KeyError:
+            return None
+
+    def get_world(self, world_id):
+        try:
+            return self.worlds[world_id]
+        except KeyError:
+            return None
 
     def __str__(self):
         return self.game
@@ -291,6 +322,8 @@ class Player():
         self.player_id = player_id
 
     async def kick(self, reason, resolution):
+        if self.game.socket is None:
+            self.game.connect()
         await self.game.raw_send(
             payload = {
                 'type': MessageType.Kick.value,
@@ -315,6 +348,8 @@ class World():
         self.claimed = False
     
     async def claim(self):
+        if self.game.socket is None:
+            self.game.connect()
         await self.game.raw_send(
             payload = {
                 'type': MessageType.WorldClaim.value,
@@ -324,6 +359,8 @@ class World():
         )
 
     async def unclaim(self):
+        if self.game.socket is None:
+            self.game.connect()
         await self.game.raw_send(
             payload = {
                 'type': MessageType.WorldClaim.value,
