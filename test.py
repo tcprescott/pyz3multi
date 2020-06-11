@@ -16,7 +16,7 @@ from pyz3multi.types import GameMode, ImportType, ItemType, MessageType
 
 load_dotenv()
 
-logging.basicConfig(stream=sys.stdout, level=logging.INFO)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
 log = logging.getLogger(__name__)
 
 multiworldbot = MultiworldBot(
